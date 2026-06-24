@@ -452,11 +452,15 @@ class BasePlugin:
                                 Domoticz.Device(
                                     Unit=POWER_LIMIT_DEVICE,
                                     Name="Max Power Output",
-                                    Type=243,      # General
-                                    Subtype=31,    # Custom Sensor
-                                    Options={"Custom": "1;W"},
+                                    TypeName="Dimmer",
                                     Used=1
                                 ).Create()
+
+                                # Start op 100%
+                                Devices[POWER_LIMIT_DEVICE].Update(
+                                    nValue=1,
+                                    sValue="100"
+                                )
 
                 else:
                     Domoticz.Log("Connection established with: {}:{}. Inverter returned no information".format(Parameters["Address"], Parameters["Port"]))
@@ -466,29 +470,25 @@ class BasePlugin:
 
     def onCommand(self, Unit, Command, Level, Hue):
 
+    if Unit == POWER_LIMIT_DEVICE:
+
+        # Level loopt van 0..100
+        percent = int(Level)
+
         Domoticz.Log(
-            f"onCommand Unit={Unit} Command={Command} Level={Level}"
+            f"Power limit changed: {percent}%"
         )
 
-        if Unit == POWER_LIMIT_DEVICE:
-
-            percent = int(Level / 10)
-
-            Domoticz.Log(
-                f"Requested inverter power limit: {percent}%"
+        try:
+            Devices[POWER_LIMIT_DEVICE].Update(
+                nValue=1 if percent > 0 else 0,
+                sValue=str(percent)
             )
 
-            try:
-
-                Devices[POWER_LIMIT_DEVICE].Update(
-                    nValue=1,
-                    sValue=str(Level)
-                )
-
-            except Exception as e:
-                Domoticz.Error(
-                    f"Unable to set power limit: {e}"
-                )
+        except Exception as e:
+            Domoticz.Error(
+                f"Failed to set power limit: {e}"
+            )
     
     async def dump_settings(self):
         settings = await self.inverter.settings()
