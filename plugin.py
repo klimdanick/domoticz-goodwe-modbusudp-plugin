@@ -459,7 +459,7 @@ class BasePlugin:
                                 # Start op 100%
                                 Devices[POWER_LIMIT_DEVICE].Update(
                                     nValue=1,
-                                    sValue="100"
+                                    sValue="100"    
                                 )
 
                 else:
@@ -470,25 +470,25 @@ class BasePlugin:
 
     def onCommand(self, Unit, Command, Level, Hue):
 
-    if Unit == POWER_LIMIT_DEVICE:
+        if Unit == POWER_LIMIT_DEVICE:
 
-        # Level loopt van 0..100
-        percent = int(Level)
+            # Level loopt van 0..100
+            percent = int(Level)
 
-        Domoticz.Log(
-            f"Power limit changed: {percent}%"
-        )
-
-        try:
-            Devices[POWER_LIMIT_DEVICE].Update(
-                nValue=1 if percent > 0 else 0,
-                sValue=str(percent)
+            Domoticz.Log(
+                f"Power limit changed: {percent}%"
             )
 
-        except Exception as e:
-            Domoticz.Error(
-                f"Failed to set power limit: {e}"
-            )
+            try:
+                Devices[POWER_LIMIT_DEVICE].Update(
+                    nValue=1 if percent > 0 else 0,
+                    sValue=str(percent)
+                )
+
+            except Exception as e:
+                Domoticz.Error(
+                    f"Failed to set power limit: {e}"
+                )
     
     async def dump_settings(self):
         settings = await self.inverter.settings()
