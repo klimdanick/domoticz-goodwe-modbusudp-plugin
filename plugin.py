@@ -363,6 +363,7 @@ class BasePlugin:
                             # Suppress device not found logs for singlephase model, as these are expected to be not present
                             if unit[Column.FOR3PHASEMODEL]==False or self.inverterIs3PhaseModel==True:
                                 # Domoticz.Debug(f"Device '{unit[Column.MODBUSNAME]}' not found.")
+                                pass
 
                     Domoticz.Log("Updated {} values out of {}".format(updated, device_count))
                 else:
