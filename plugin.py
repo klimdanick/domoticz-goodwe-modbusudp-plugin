@@ -285,6 +285,7 @@ class BasePlugin:
                 famStr="Auto. (Setting family to your inverters family spec, speeds up the wait time to connect)"
             Domoticz.Log(f"Connecting to inverter. Host: {host}, Port: 8899, Family: {famStr}.")
             self.inverter =  asyncio.run( goodwe.connect(host=host, family=Parameters["Mode3"], retries=3) )
+            self.dump_settings()
         except goodwe.RequestFailedException as e:
             Domoticz.Error(f"Request failed: Cannot connect to inverter: {e.message}") 
             famStr=Parameters["Mode3"]
@@ -488,6 +489,15 @@ class BasePlugin:
                 Domoticz.Error(
                     f"Unable to set power limit: {e}"
                 )
+    
+    async def dump_settings(self):
+        settings = await self.inverter.settings()
+
+        for setting in settings:
+            Domoticz.Log(
+                f"{setting.id_} - {setting.name}"
+            )
+
 
 # Instantiate the plugin and register the supported callbacks.
 global _plugin
@@ -504,7 +514,6 @@ def onHeartbeat():
 def onCommand(Unit, Command, Level, Hue):
     global _plugin
     _plugin.onCommand(Unit, Command, Level, Hue)
-
 
 
 
