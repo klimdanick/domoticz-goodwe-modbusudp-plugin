@@ -236,6 +236,8 @@ INVERTER_PARAMS = [
     ["meter_sw_version","Meter Software Version",DType.General,DGeneralSubType.CustomSensor,DSwitchType.General,     {},                   "{}",          None,           False,  False,          118 ]  # Meter Software Version = 2    
 ]
 
+POWER_LIMIT_DEVICE = 200
+
 # A time counter in milleconds that is guaranteed to go forward.
 def millis(): 
     return int(time.monotonic() * 1000)
@@ -444,6 +446,20 @@ class BasePlugin:
                                                     Options=unit[Column.OPTIONS],
                                                     Used=1,
                                                 ).Create()
+                            
+                            if POWER_LIMIT_DEVICE not in Devices:
+                                Domoticz.Device(
+                                    Unit=POWER_LIMIT_DEVICE,
+                                    Name="Max Power Output",
+                                    TypeName="Selector Switch",
+                                    Options={
+                                        "LevelActions": "|||||||||||",
+                                        "LevelNames": "0%|10%|20%|30%|40%|50%|60%|70%|80%|90%|100%",
+                                        "LevelOffHidden": "false",
+                                        "SelectorStyle": "0"
+                                    },
+                                    Used=1
+                                ).Create()
 
                 else:
                     Domoticz.Log("Connection established with: {}:{}. Inverter returned no information".format(Parameters["Address"], Parameters["Port"]))
@@ -451,6 +467,31 @@ class BasePlugin:
         else:
             Domoticz.Log("Retrying to communicate with inverter after: {} sec.".format( (self.retrydelay - (millis() - self.lastconnectfailuretime)) / 1000.0))
 
+    def onCommand(self, Unit, Command, Level, Hue):
+
+        Domoticz.Log(
+            f"onCommand Unit={Unit} Command={Command} Level={Level}"
+        )
+
+        if Unit == POWER_LIMIT_DEVICE:
+
+            percent = int(Level / 10)
+
+            Domoticz.Log(
+                f"Requested inverter power limit: {percent}%"
+            )
+
+            try:
+
+                Devices[POWER_LIMIT_DEVICE].Update(
+                    nValue=1,
+                    sValue=str(Level)
+                )
+
+            except Exception as e:
+                Domoticz.Error(
+                    f"Unable to set power limit: {e}"
+                )
 
 # Instantiate the plugin and register the supported callbacks.
 global _plugin
@@ -463,6 +504,10 @@ def onStart():
 def onHeartbeat():
     global _plugin
     _plugin.onHeartbeat()
+
+def onCommand(Unit, Command, Level, Hue):
+    global _plugin
+    _plugin.onCommand(Unit, Command, Level, Hue)
 
 
 
