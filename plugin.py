@@ -301,6 +301,7 @@ class BasePlugin:
 
     def onHeartbeat(self):
         Domoticz.Debug("Heartbeat")
+        self.dump_settings()
         if self.inverter:
             runtime_data = None
             try:
