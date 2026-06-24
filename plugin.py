@@ -451,13 +451,9 @@ class BasePlugin:
                                 Domoticz.Device(
                                     Unit=POWER_LIMIT_DEVICE,
                                     Name="Max Power Output",
-                                    TypeName="Selector Switch",
-                                    Options={
-                                        "LevelActions": "|||||||||||",
-                                        "LevelNames": "0%|10%|20%|30%|40%|50%|60%|70%|80%|90%|100%",
-                                        "LevelOffHidden": "false",
-                                        "SelectorStyle": "0"
-                                    },
+                                    Type=243,      # General
+                                    Subtype=31,    # Custom Sensor
+                                    Options={"Custom": "1;W"},
                                     Used=1
                                 ).Create()
 
