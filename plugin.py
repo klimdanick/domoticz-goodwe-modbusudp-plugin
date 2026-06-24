@@ -302,79 +302,6 @@ class BasePlugin:
     def onHeartbeat(self):
         Domoticz.Debug("Heartbeat")
         self.dump_settings()
-        if self.inverter:
-            runtime_data = None
-            try:
-                runtime_data = asyncio.run( self.inverter.read_runtime_data() )
-                self.connectionFailureCountOnHeartbeat=0
-            except (ConnectionException, goodwe.exceptions.RequestFailedException) as e:
-                runtime_data = None
-                self.connectionFailureCountOnHeartbeat=self.connectionFailureCountOnHeartbeat+1
-                Domoticz.Log(f"Connection failure #{self.connectionFailureCountOnHeartbeat}/{self.connectionFailureMaxCountOnHeartbeat}")
-                if self.connectionFailureCountOnHeartbeat>=self.connectionFailureMaxCountOnHeartbeat:
-                    # We have 5 connection failure's in a row. Lets forget the inverter connection completely, this will
-                    # cause a reconnect in the next call to onHeartbeat and start its own retry mechanism if needed.
-                    Domoticz.Error(f"{self.connectionFailureCountOnHeartbeat} connection failures have occured. Disconnecting from inverter and try to reconnect in a moment.")
-                    self.connectionFailureCountOnHeartbeat=0
-                    self.inverter=None
-            else:
-                # Yaay! We have a working connection with the GoodWe inverter and have read some data from it.    
-                if runtime_data:
-                    updated = 0
-                    device_count = 0
-                    # Log all modbus values when enabled:
-                    if "Mode5" in Parameters and Parameters["Mode5"] == "Extra":
-                        for sensor in self.inverter.sensors():
-                            if sensor.id_ in runtime_data:                        
-                                Domoticz.Log(f"Modbus sensor '{sensor.id_}': \t\t {sensor.name} = {runtime_data[sensor.id_]} {sensor.unit}")
-
-                    
-                    for unit in INVERTER_PARAMS: # Iterate through our lookup table INVERTER_PARAMS
-                        if unit[Column.IDNUM] in Devices: # Find the device in the Domoticz devices list
-                            for sensor in self.inverter.sensors(): # Iterate and find the modbusname in the inverter.sensors
-                                if sensor.id_==unit[Column.MODBUSNAME]:                        
-                                    # Now we read the value and debuglog it.
-                                    value = runtime_data[unit[Column.MODBUSNAME]]
-                                    Domoticz.Debug(f"Processing '{sensor.id_}': Value {sensor.name} = {format(value)} {sensor.unit}.")
-                                    
-                                    if unit[Column.SWITCHTYPE]==DSwitchType.EnergyGenerated: # The value has been returned by the GoodWe library in kWh, but needs to be Wh for Domoticz
-                                        value=value*1000.0
-                                    
-                                    if unit[Column.RST0WAIT]==True and value!=0 and runtime_data["work_mode"]==0: # 0=Wait mode, 1=Normal: ppv, ppv1, ppv2,.... and more values looks nice to be reset to 0 instead of leaving the last known value.
-                                        # if wait mode, then force al current power generated 'DType.Usage' numbers to 0
-                                        Domoticz.Debug(f"Wait mode is engaged, enforcing {sensor.name} from {format(value)} to 0 {sensor.unit}.")
-                                        value=0
-
-                                    # Store the value in Domoticz.
-                                    # Some devices need multiple values, we will supply them.
-                                    if unit[Column.PREPEND_IDNUM]:
-                                        prepend = Devices[unit[Column.PREPEND_IDNUM]].sValue
-                                        sValue = unit[Column.FORMAT].format(prepend, value)
-                                    else:
-                                        sValue = unit[Column.FORMAT].format(value)
-                                    Domoticz.Debug("Update value = {}".format(sValue))
-
-                                    # Store the value when changed.
-                                    if sValue != Devices[unit[Column.IDNUM]].sValue:
-                                        Devices[unit[Column.IDNUM]].Update(nValue=0, sValue=str(sValue), TimedOut=0)
-                                        updated += 1
-
-                                    device_count += 1
-                        else:
-                            # Suppress device not found logs for singlephase model, as these are expected to be not present
-                            if unit[Column.FOR3PHASEMODEL]==False or self.inverterIs3PhaseModel==True:
-                                # Domoticz.Debug(f"Device '{unit[Column.MODBUSNAME]}' not found.")
-                                pass
-
-                    Domoticz.Log("Updated {} values out of {}".format(updated, device_count))
-                else:
-                    Domoticz.Log("Inverter returned no information")
-
-        # Try to contact the inverter
-        else:
-            self.readFromInverter()
-
-
     
     # Contact the inverter and find out if its a 3 phase or singlephase inverter    
     def readFromInverter(self):
@@ -428,27 +355,6 @@ class BasePlugin:
 
                         # Add devices if enabled and if needed.
                         if self.add_devices:
-                            for sensor in self.inverter.sensors():
-                                if sensor.id_ in runtime_data:                        
-                                    if sensor.id_ not in Devices:
-                                        for unit in INVERTER_PARAMS:
-                                            if unit[Column.MODBUSNAME]==sensor.id_:
-                                                value = runtime_data[unit[Column.MODBUSNAME]]
-
-                                                # If the value is for the 3 phase model only and the inverter is single phase, then do not add the value to Domoticz as that would be useless and take up space that is just waste.
-                                                if self.inverterIs3PhaseModel==False and unit[Column.FOR3PHASEMODEL]==True:
-                                                    Domoticz.Debug(f"Single phase model detected. Not creating Domoticz device for {sensor.name} value {format(value)} {sensor.unit}.")
-                                                    continue
-
-                                                Domoticz.Device(
-                                                    Unit=unit[Column.IDNUM],
-                                                    Name=unit[Column.DISPLAYNAME],
-                                                    Type=unit[Column.TYPE],
-                                                    Subtype=unit[Column.SUBTYPE],
-                                                    Switchtype=unit[Column.SWITCHTYPE],
-                                                    Options=unit[Column.OPTIONS],
-                                                    Used=1,
-                                                ).Create()
                             
                             if POWER_LIMIT_DEVICE not in Devices:
                                 Domoticz.Device(
